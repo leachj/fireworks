@@ -43,6 +43,9 @@ class NumberDisplay
 
 	def display(number)
 		
+		if(number == 0)
+			levels = set([:bottom_right, :top_right, :bottom_left, :top_left, :bottom, :top])
+		end
 		if(number == 1)
 			levels = set([:bottom_right, :top_right])
 		end

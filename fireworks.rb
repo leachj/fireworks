@@ -54,6 +54,8 @@ Thread.new do
      sleep 1
      number.display(1)
      sleep 1
+     number.display(0)
+     sleep 1
      number.clear()
      selected = nil
   elsif armed
