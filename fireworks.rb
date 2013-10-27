@@ -2,6 +2,9 @@ require 'sinatra'
 require 'pi_piper'
 require './dmx'
 include PiPiper
+require 'rubygems'
+require 'data_mapper'
+require 'json'
 
 armingSwitch = PiPiper::Pin.new(:pin => 3, :direction => :in, :pull => :up)
 fireButton = PiPiper::Pin.new(:pin => 2, :direction => :in, :pull => :up)
@@ -92,14 +95,44 @@ firstBox = pins[5]
 secondBox = pins[4]
 
 
-get '/select/:box/:channel/:polarity' do
+DataMapper.setup(:default, 'sqlite:project.db')
 
-    if armed
+class Task
+  include DataMapper::Resource
+ 
+  property :id,             Serial
+  property :fired,        Boolean
+  property :description,    Text, :required => true
+  property :box,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
+  property :channel,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
+  property :polarity,    Integer, :required => true, :format => /[12]/, :unique_index => :u
+ 
+end
+DataMapper.auto_upgrade!
+
+
+before do
+	content_type 'application/json'
+end
+
+get "/" do
+	content_type 'html'
+	erb :index
+end
+get "/tasks" do
+	@tasks = Task.all
+	@tasks.to_json
+end
+
+get "/tasks/:id/select" do
+
+	@task = Task.get(params[:id])
+     box = @task.box
+     channel = @task.channel
+     polarity = @task.polarity
+     if armed
         fireButtonLight.on
      end
-     box = "#{params[:box]}".to_i
-     channel = "#{params[:channel]}".to_i
-     polarity = "#{params[:polarity]}".to_i
      pins.each { |pin| pin.off }
 
      if(box > 2)
@@ -143,7 +176,102 @@ get '/select/:box/:channel/:polarity' do
      end
 
     selected = true
-    "selected box: #{box} channel: #{channel}"
+    "selected box: #{box} channel: #{channel} polarity: #{polarity}"
+end
+
+post "/tasks/new" do
+	@task = Task.new
+	@task.fired = false
+	@task.description = params[:description]
+	@task.box = params[:box]
+	@task.channel = params[:channel]
+	@task.polarity = params[:polarity]
+	if @task.save
+		{:task => @task, :status => "success"}.to_json
+	else
+		{:task => @task, :status => "failure"}.to_json
+	end
+end
+put "/tasks/:id" do
+	@task = Task.find(params[:id])
+	@task.fired = params[:fired]
+	@task.description = params[:description]
+	@task.box = params[:box]
+	@task.channel = params[:channel]
+	@task.polarity = params[:polarity]
+	if @task.save
+		{:task => @task, :status => "success"}.to_json
+	else
+		{:task => @task, :status => "failure"}.to_json
+	end
+end
+delete "/tasks/:id" do
+	@task = Task.get(params[:id])
+	if @task.destroy
+		{:status => "success"}.to_json
+	else
+		{:status => "failure"}.to_json
+	end
+end
+
+def select(box, channel, polarity)
+	
+    if armed
+        fireButtonLight.on
+     end
+     pins.each { |pin| pin.off }
+
+     if(box > 2)
+	selectorBox.off
+     	if((box % 2) == 0)
+		secondBox.off
+	else
+		secondBox.on
+	end
+     else
+	selectorBox.on
+     	if((box % 2) == 0)
+		firstBox.off
+	else
+		firstBox.on
+	end
+     end
+
+     if(channel > 2)
+        selectorChannel.on
+        if((channel % 2) == 0)
+                secondChannel.on
+        else
+                secondChannel.off
+        end
+     else
+        selectorChannel.off
+        if((channel % 2) == 0)
+                firstChannel.on
+        else
+                firstChannel.off
+        end
+     end
+
+     if(polarity > 1)
+	polarityBox.off
+	polarityChannel.on
+     else
+	polarityBox.on
+	polarityChannel.off
+     end
+
+    selected = true
+    "selected box: #{box} channel: #{channel} polarity: #{polarity}"
+
+end
+
+get '/select/:box/:channel/:polarity' do
+
+     box = "#{params[:box]}".to_i
+     channel = "#{params[:channel]}".to_i
+     polarity = "#{params[:polarity]}".to_i
+     select(box, channel, polarity)
 
 end
 
