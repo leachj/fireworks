@@ -1,0 +1,72 @@
+<!DOCTYPE html >
+<html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->  <!--<![endif]-->
+    <body>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>ToDo</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+ 
+        <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
+        <link rel="stylesheet" href="styles/styles.css">
+        <script src="scripts/modernizr-2.6.2.min.js"></script>
+     
+     
+        <!--[if lt IE 7]>
+            <p class="chromeframe">You are using an outdated browser. <a href="http://browsehappy.com/">Upgrade your browser today</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to better experience this site.</p>
+        <![endif]-->
+        <!-- Add your site or application content here -->
+        <div id="container">
+            <section id="tasktable">
+                <h2>Fireworks<span></span></h2>
+                <table>
+                    <tbody><tr>
+                        <th>Description</th>
+                        <th>Box</th>
+                        <th>Channel</th>
+                        <th>Polarity</th>
+                        <th>Delete</th>
+                    </tr>
+                  <!-- ko foreach: tasks -->
+                    <tr>
+   <td data-bind="text: description, click: $parent.select"></td>
+   <td data-bind="text: box"></td>
+   <td data-bind="text: channel"></td>
+   <td data-bind="text: polarity"></td>
+		<td data-bind="click: $parent.destroyTask" class="destroytask"><a>X</a></td>    
+		</tr>
+		<!-- /ko -->
+                </tbody></table>
+            </section>
+            <section id="taskforms" class="clearfix">
+                <div id="newtaskform">
+    <h2>Add Firework</h2>
+    <form id="addtask" data-bind="submit: addTask">
+        Name:<input data-bind="value: newTaskDesc">
+        Box:<input data-bind="value: newTaskBox">
+        Channel:<input data-bind="value: newTaskChannel">
+        Polarity:<input data-bind="value: newTaskPolarity">
+        <input type="submit">
+    </form>
+</div>
+            </section>
+        </div>
+ 
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.1/jquery.min.js"></script>
+        <script>window.jQuery || document.write('<script src="scripts/jquery.js"><\/script>')</script>
+        <script src="scripts/knockout.js"></script>
+        <script src="scripts/app.js"></script>
+ 
+        <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
+        <script>
+            var _gaq=[['_setAccount','UA-XXXXX-X'],['_trackPageview']];
+            (function(d,t){var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+            g.src=('https:'==location.protocol?'//ssl':'//www')+'.google-analytics.com/ga.js';
+            s.parentNode.insertBefore(g,s)}(document,'script'));
+        </script>
+    </body>
+</html>
