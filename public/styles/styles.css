@@ -1,3 +1,8 @@
+body {
+	background-color: #000000;
+	color: #FFFFFF;
+}
+
 section {
     width: 800px;
     margin: 20px auto;
@@ -11,12 +16,14 @@ th {
 tr {
     border-bottom: 1px solid #ddd;
 }
-tr.complete, tr.complete:nth-child(odd) {
-    background: #efffd7;
-    color: #ddd;
+
+tr.selected {
+    background: #FF0000;
+    color: #000000;
 }
-tr:nth-child(odd) {
-    background-color: #dedede;
+tr.fired {
+    color: #99959C;
+    text-decoration:line-through;
 }
 td {
     padding: 10px 20px;

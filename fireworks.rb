@@ -46,6 +46,8 @@ PiPiper::after :pin => 2, :goes => :low do
 Thread.new do
   puts "Fire button pressed"
   if armed and selected
+     selected.fired = true
+     selected.save
      puts "Fire!!!!"
      fireButtonLight.off
      number.display(5)
@@ -102,6 +104,7 @@ class Task
  
   property :id,             Serial
   property :fired,        Boolean
+  property :selected,        Boolean
   property :description,    Text, :required => true
   property :box,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
   property :channel,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
@@ -126,7 +129,11 @@ end
 
 get "/tasks/:id/select" do
 
-	@task = Task.get(params[:id])
+     @task = Task.get(params[:id])
+     if(@task.fired)
+	return
+     end
+     @task.selected = true
      box = @task.box
      channel = @task.channel
      polarity = @task.polarity
@@ -174,9 +181,10 @@ get "/tasks/:id/select" do
 	polarityBox.on
 	polarityChannel.off
      end
-
-    selected = true
-    "selected box: #{box} channel: #{channel} polarity: #{polarity}"
+    Task.all.each {|t| t.selected=false; t.save }
+    selected = @task
+    @task.save
+    @task.to_json    
 end
 
 post "/tasks/new" do

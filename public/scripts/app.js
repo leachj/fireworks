@@ -5,21 +5,31 @@ function Task(data) {
     this.box = ko.observable(data.box);
     this.channel = ko.observable(data.channel);
     this.polarity = ko.observable(data.polarity);
+    this.selected = ko.observable(data.selected);
+    this.selectedStatus = ko.computed(function() {
+        return this.fired() ? "fired" : this.selected() ? "selected" : "not-selected";
+    }, this);
 }
 
 function TaskViewModel() {
     var self = this;
     self.tasks = ko.observableArray([]);
+
+    self.update = function() {
     $.getJSON("/tasks", function(raw) {
         var tasks = $.map(raw, function(item) { return new Task(item) });
         self.tasks(tasks);
     });
+    };
+
+    self.update();
 
 
     self.newTaskDesc = ko.observable();
     self.newTaskBox = ko.observable();
     self.newTaskChannel = ko.observable();
     self.newTaskPolarity = ko.observable();
+
 
     self.addTask = function() {
         
@@ -50,12 +60,16 @@ function TaskViewModel() {
     };
 
    self.select= function(task) {
-        $.ajax({
+	$.ajax({
              url: "/tasks/"+task.id()+"/select",
-             type: "GET"
-        })
+             type: "GET",
+	     dataType: "html",
+        }).done(function(data){
+		self.update();
+	});
     };
 }
 
-
-ko.applyBindings(new TaskViewModel());
+var fireworkViewModel = new TaskViewModel();
+window.setInterval(fireworkViewModel.update,2000);
+ko.applyBindings(fireworkViewModel);
