@@ -6,6 +6,7 @@ class Firework
   property :id,             Serial
   property :fired,        Boolean
   property :selected,        Boolean
+  property :ok,        Boolean
   property :description,    Text, :required => true
   property :size,    Enum[:S, :M, :L, :XL]
   property :box,    Integer, :required => true, :format => /[1234]/, :unique_index => :u

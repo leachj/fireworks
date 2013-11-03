@@ -9,6 +9,7 @@ require 'json'
 
 armingSwitch = PiPiper::Pin.new(:pin => 3, :direction => :in, :pull => :up)
 fireButton = PiPiper::Pin.new(:pin => 2, :direction => :in, :pull => :up)
+checkPin = PiPiper::Pin.new(:pin => 10, :direction => :in, :pull => :up)
 
 fireButtonLight = PiPiper::Pin.new(:pin => 8, :direction => :out)
 fireRelay = PiPiper::Pin.new(:pin => 7, :direction => :out)
@@ -35,7 +36,7 @@ armed = false
 selected = nil
 
 litebar.green()
-Firework.all.each{ |f| f.selected=false; f.save }
+Firework.all.each{ |f| f.selected=false; f.ok = false; f.save }
 
 PiPiper::after :pin => 3, :goes => :high do
 Thread.new do
@@ -86,7 +87,26 @@ Thread.new do
 end
 end
 
+get "/fireworks/check" do
+	
+	Firework.all.each do |firework|
+		firework.select(pins)
+		sleep 1
+		checkPin.read
+		if(checkPin.off?)
+			firework.ok = true
+			puts "OK"
+		else
+			firework.ok = false
+			puts "Not OK"
+		end
+		firework.selected = false
+		firework.save
+	end
+	pins.each { |pin| pin.off }
+	redirect to('/fireworks')
 
+end
 
 get "/fireworks" do
 	@fireworks = Firework.all.sort_by do |x| 

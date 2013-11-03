@@ -13,7 +13,7 @@
 		'class="selected"' 
 	end%>>
       <b <%= 'class="fired"' if firework.fired %>><%= firework.description %></b>
-      <i><%= firework.size %> <%= firework.box %>/<%= firework.channel %>/<%= firework.polarity %></i>
+      <i><%= '<i class="green">OK</i>' if firework.ok %> <%= firework.size %> <%= firework.box %>/<%= firework.channel %>/<%= firework.polarity %></i>
       
      <% if !firework.fired and !firework.selected %>
       <a href="/fireworks/<%= firework.id %>/select">Select</a>
@@ -23,6 +23,6 @@
      <% end %>	    
     </p>
 <% end %>
-
+<a href="/fireworks/check">Run Check</a>
 </body>
 </html>
