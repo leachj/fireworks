@@ -1,6 +1,7 @@
 require 'sinatra'
 require 'pi_piper'
 require './dmx'
+require './firework'
 include PiPiper
 require 'rubygems'
 require 'data_mapper'
@@ -16,10 +17,25 @@ dmx = Dmx.new({:numbers => 1, :litebar => 8})
 number = NumberDisplay.new(dmx,:numbers)
 litebar = LiteBar.new(dmx,:litebar)
 
+pins = [PiPiper::Pin.new(:pin => 4, :direction => :out),
+	PiPiper::Pin.new(:pin => 17, :direction => :out),
+	PiPiper::Pin.new(:pin => 27, :direction => :out),
+	PiPiper::Pin.new(:pin => 22, :direction => :out),
+	PiPiper::Pin.new(:pin => 18, :direction => :out),
+	PiPiper::Pin.new(:pin => 23, :direction => :out),
+	PiPiper::Pin.new(:pin => 24, :direction => :out),
+	PiPiper::Pin.new(:pin => 25, :direction => :out)
+]
+
+
+DataMapper.setup(:default, 'sqlite:project.db')
+DataMapper.auto_upgrade!
+
 armed = false
 selected = nil
 
 litebar.green()
+Firework.all.each{ |f| f.selected=false; f.save }
 
 PiPiper::after :pin => 3, :goes => :high do
 Thread.new do
@@ -32,7 +48,7 @@ end
 
 PiPiper::after :pin => 3, :goes => :low do
 Thread.new do
-   puts "Armed"
+  puts "Armed"
   armed = true
   if selected
      fireButtonLight.on
@@ -47,25 +63,20 @@ Thread.new do
   puts "Fire button pressed"
   if armed and selected
      selected.fired = true
-     selected.save
      puts "Fire!!!!"
      fireButtonLight.off
-     number.display(5)
-     sleep 1
-     number.display(4)
-     sleep 1
-     number.display(3)
-     sleep 1
-     number.display(2)
-     sleep 1
-     number.display(1)
-     sleep 1
-     number.display(0)
-     sleep 1
+	5.downto(0).each do |n|
+	puts n
+	number.display(n)
+	sleep 1
+     end
      number.clear()
+     
      fireRelay.on
      sleep 5
      fireRelay.off
+     
+     selected.save
      selected = nil
   elsif armed
     puts "no firework selected"
@@ -76,211 +87,59 @@ end
 end
 
 
-pins = [PiPiper::Pin.new(:pin => 4, :direction => :out),
-	PiPiper::Pin.new(:pin => 17, :direction => :out),
-	PiPiper::Pin.new(:pin => 27, :direction => :out),
-	PiPiper::Pin.new(:pin => 22, :direction => :out),
-	PiPiper::Pin.new(:pin => 18, :direction => :out),
-	PiPiper::Pin.new(:pin => 23, :direction => :out),
-	PiPiper::Pin.new(:pin => 24, :direction => :out),
-	PiPiper::Pin.new(:pin => 25, :direction => :out)
-]
 
-polarityChannel = pins[0]
-selectorChannel = pins[1]
-firstChannel = pins[2]
-secondChannel = pins[3]
-
-polarityBox = pins[7]
-selectorBox = pins[6]
-firstBox = pins[5]
-secondBox = pins[4]
-
-
-DataMapper.setup(:default, 'sqlite:project.db')
-
-class Task
-  include DataMapper::Resource
- 
-  property :id,             Serial
-  property :fired,        Boolean
-  property :selected,        Boolean
-  property :description,    Text, :required => true
-  property :box,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
-  property :channel,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
-  property :polarity,    Integer, :required => true, :format => /[12]/, :unique_index => :u
- 
-end
-DataMapper.auto_upgrade!
-
-
-before do
-	content_type 'application/json'
+get "/fireworks" do
+	@fireworks = Firework.all.sort_by do |x| 
+	    if(x.fired)
+		100
+	    elsif(x.selected)
+		0
+	    else
+		[:S, :M, :L, :XL].index(x.size) + 1
+	    end
+	end
+	erb :list
 end
 
-get "/" do
-	content_type 'html'
-	erb :index
-end
-get "/tasks" do
-	@tasks = Task.all
-	@tasks.to_json
-end
+get "/fireworks/:id/select" do
 
-get "/tasks/:id/select" do
-
-     @task = Task.get(params[:id])
-     if(@task.fired)
+     @firework = Firework.get(params[:id])
+     if(@firework.fired)
 	return
      end
-     @task.selected = true
-     box = @task.box
-     channel = @task.channel
-     polarity = @task.polarity
      if armed
         fireButtonLight.on
      end
      pins.each { |pin| pin.off }
-
-     if(box > 2)
-	selectorBox.off
-     	if((box % 2) == 0)
-		secondBox.off
-	else
-		secondBox.on
-	end
-     else
-	selectorBox.on
-     	if((box % 2) == 0)
-		firstBox.off
-	else
-		firstBox.on
-	end
-     end
-
-     if(channel > 2)
-        selectorChannel.on
-        if((channel % 2) == 0)
-                secondChannel.on
-        else
-                secondChannel.off
-        end
-     else
-        selectorChannel.off
-        if((channel % 2) == 0)
-                firstChannel.on
-        else
-                firstChannel.off
-        end
-     end
-
-     if(polarity > 1)
-	polarityBox.off
-	polarityChannel.on
-     else
-	polarityBox.on
-	polarityChannel.off
-     end
-    Task.all.each {|t| t.selected=false; t.save }
-    selected = @task
-    @task.save
-    @task.to_json    
+     @firework.select(pins)
+     Firework.all.select{|f| f!=@firework }.each{ |f| f.selected=false; f.save }
+     selected = @firework
+     @firework.selected = true
+     @firework.save
+     redirect to('/fireworks')
 end
 
-post "/tasks/new" do
-	@task = Task.new
-	@task.fired = false
-	@task.description = params[:description]
-	@task.box = params[:box]
-	@task.channel = params[:channel]
-	@task.polarity = params[:polarity]
-	if @task.save
-		{:task => @task, :status => "success"}.to_json
-	else
-		{:task => @task, :status => "failure"}.to_json
-	end
-end
-put "/tasks/:id" do
-	@task = Task.find(params[:id])
-	@task.fired = params[:fired]
-	@task.description = params[:description]
-	@task.box = params[:box]
-	@task.channel = params[:channel]
-	@task.polarity = params[:polarity]
-	if @task.save
-		{:task => @task, :status => "success"}.to_json
-	else
-		{:task => @task, :status => "failure"}.to_json
-	end
-end
-delete "/tasks/:id" do
-	@task = Task.get(params[:id])
-	if @task.destroy
-		{:status => "success"}.to_json
-	else
-		{:status => "failure"}.to_json
-	end
+get "/fireworks/add" do
+	erb :add
 end
 
-def select(box, channel, polarity)
-	
-    if armed
-        fireButtonLight.on
-     end
-     pins.each { |pin| pin.off }
-
-     if(box > 2)
-	selectorBox.off
-     	if((box % 2) == 0)
-		secondBox.off
+post "/fireworks" do
+	@firework = Firework.new
+	@firework.fired = false
+	@firework.description = params[:description]
+	@firework.box = params[:box]
+	@firework.channel = params[:channel]
+	@firework.polarity = params[:polarity]
+	@firework.size = params[:size].to_sym
+	if @firework.save
+	    "Firework added"
 	else
-		secondBox.on
+	    "Firework not added"
 	end
-     else
-	selectorBox.on
-     	if((box % 2) == 0)
-		firstBox.off
-	else
-		firstBox.on
-	end
-     end
-
-     if(channel > 2)
-        selectorChannel.on
-        if((channel % 2) == 0)
-                secondChannel.on
-        else
-                secondChannel.off
-        end
-     else
-        selectorChannel.off
-        if((channel % 2) == 0)
-                firstChannel.on
-        else
-                firstChannel.off
-        end
-     end
-
-     if(polarity > 1)
-	polarityBox.off
-	polarityChannel.on
-     else
-	polarityBox.on
-	polarityChannel.off
-     end
-
-    selected = true
-    "selected box: #{box} channel: #{channel} polarity: #{polarity}"
-
 end
-
-get '/select/:box/:channel/:polarity' do
-
-     box = "#{params[:box]}".to_i
-     channel = "#{params[:channel]}".to_i
-     polarity = "#{params[:polarity]}".to_i
-     select(box, channel, polarity)
-
+get "/fireworks/:id/delete" do
+	@firework = Firework.get(params[:id])
+	@firework.destroy
+	redirect to('/fireworks')
 end
-
 
