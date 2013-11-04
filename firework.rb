@@ -5,9 +5,8 @@ class Firework
  
   property :id,             Serial
   property :fired,        Boolean
-  property :selected,        Boolean
-  property :ok,        Boolean
   property :description,    Text, :required => true
+  property :status,    Enum[:unknown, :ok, :error]
   property :size,    Enum[:S, :M, :L, :XL]
   property :box,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
   property :channel,    Integer, :required => true, :format => /[1234]/, :unique_index => :u
@@ -64,8 +63,6 @@ class Firework
 	polarityBox.on
 	polarityChannel.off
      end
-
-    selected = true
 
 end
 

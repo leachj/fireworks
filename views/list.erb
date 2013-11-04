@@ -9,20 +9,20 @@
     <p <%= 
 	if firework.fired 
 		'class="fired"' 
-	elsif firework.selected 
+	elsif firework==@selected 
 		'class="selected"' 
 	end%>>
       <b <%= 'class="fired"' if firework.fired %>><%= firework.description %></b>
-      <i><%= '<i class="green">OK</i>' if firework.ok %> <%= firework.size %> <%= firework.box %>/<%= firework.channel %>/<%= firework.polarity %></i>
+      <i><%= '<i class="green">OK</i>' if firework.status == :ok %><%= '<i class="red">Error</i>' if (firework.status == :error and !firework.fired) %> <%= firework.size %> <%= firework.box %>/<%= firework.channel %>/<%= firework.polarity %></i>
       
-     <% if !firework.fired and !firework.selected %>
+     <% if !firework.fired and !(firework==@selected)%>
       <a href="/fireworks/<%= firework.id %>/select">Select</a>
      <% end %>	    
-     <% if !firework.selected %>
+     <% if !(firework==@selected) %>
       <a href="/fireworks/<%= firework.id %>/delete">Delete</a>
      <% end %>	    
     </p>
 <% end %>
-<a href="/fireworks/check">Run Check</a>
+<a href="/fireworks/check">Run Check</a> <a href="/fireworks/countdown"><%= @countdown?'Disable Countdown':'Enable Countdown' %></a>
 </body>
 </html>

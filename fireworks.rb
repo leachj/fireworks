@@ -9,7 +9,7 @@ require 'json'
 
 armingSwitch = PiPiper::Pin.new(:pin => 3, :direction => :in, :pull => :up)
 fireButton = PiPiper::Pin.new(:pin => 2, :direction => :in, :pull => :up)
-checkPin = PiPiper::Pin.new(:pin => 10, :direction => :in, :pull => :up)
+checkPin = PiPiper::Pin.new(:pin => 10, :direction => :in)
 
 fireButtonLight = PiPiper::Pin.new(:pin => 8, :direction => :out)
 fireRelay = PiPiper::Pin.new(:pin => 7, :direction => :out)
@@ -17,7 +17,7 @@ fireRelay = PiPiper::Pin.new(:pin => 7, :direction => :out)
 dmx = Dmx.new({:numbers => 1, :litebar => 8})
 number = NumberDisplay.new(dmx,:numbers)
 litebar = LiteBar.new(dmx,:litebar)
-
+countdown = true
 pins = [PiPiper::Pin.new(:pin => 4, :direction => :out),
 	PiPiper::Pin.new(:pin => 17, :direction => :out),
 	PiPiper::Pin.new(:pin => 27, :direction => :out),
@@ -32,11 +32,13 @@ pins = [PiPiper::Pin.new(:pin => 4, :direction => :out),
 DataMapper.setup(:default, 'sqlite:project.db')
 DataMapper.auto_upgrade!
 
+fireworks = Firework.all
+fireworks.each {|f| f.status = :unknown}
+fireworks.save!
 armed = false
 selected = nil
 
 litebar.green()
-Firework.all.each{ |f| f.selected=false; f.ok = false; f.save }
 
 PiPiper::after :pin => 3, :goes => :high do
 Thread.new do
@@ -66,13 +68,14 @@ Thread.new do
      selected.fired = true
      puts "Fire!!!!"
      fireButtonLight.off
+     if countdown
 	5.downto(0).each do |n|
-	puts n
-	number.display(n)
-	sleep 1
+	   puts n
+   	   number.display(n)
+	   sleep 1
+        end
+        number.clear()
      end
-     number.clear()
-     
      fireRelay.on
      sleep 5
      fireRelay.off
@@ -87,23 +90,29 @@ Thread.new do
 end
 end
 
+get "/fireworks/countdown" do
+	countdown = (countdown)?false:true
+	redirect to('/fireworks')
+end	
+
 get "/fireworks/check" do
 	
-	Firework.all.each do |firework|
+	fireworks = Firework.all
+	fireworks.each do |firework|
 		firework.select(pins)
 		sleep 1
 		checkPin.read
 		if(checkPin.off?)
-			firework.ok = true
+			firework.status = :ok
 			puts "OK"
 		else
-			firework.ok = false
+			firework.status = :error
 			puts "Not OK"
 		end
-		firework.selected = false
-		firework.save
 	end
 	pins.each { |pin| pin.off }
+	fireworks.save!
+	selected = nil
 	redirect to('/fireworks')
 
 end
@@ -112,12 +121,14 @@ get "/fireworks" do
 	@fireworks = Firework.all.sort_by do |x| 
 	    if(x.fired)
 		100
-	    elsif(x.selected)
+	    elsif(x==selected)
 		0
 	    else
 		[:S, :M, :L, :XL].index(x.size) + 1
 	    end
 	end
+	@selected = selected
+	@countdown = countdown
 	erb :list
 end
 
@@ -132,10 +143,7 @@ get "/fireworks/:id/select" do
      end
      pins.each { |pin| pin.off }
      @firework.select(pins)
-     Firework.all.select{|f| f!=@firework }.each{ |f| f.selected=false; f.save }
      selected = @firework
-     @firework.selected = true
-     @firework.save
      redirect to('/fireworks')
 end
 
