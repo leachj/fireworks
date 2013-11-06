@@ -6,6 +6,9 @@ include PiPiper
 require 'rubygems'
 require 'data_mapper'
 require 'json'
+require 'thread'
+
+mutex = Mutex.new
 
 armingSwitch = PiPiper::Pin.new(:pin => 3, :direction => :in, :pull => :up)
 fireButton = PiPiper::Pin.new(:pin => 2, :direction => :in, :pull => :up)
@@ -14,9 +17,10 @@ checkPin = PiPiper::Pin.new(:pin => 10, :direction => :in)
 fireButtonLight = PiPiper::Pin.new(:pin => 8, :direction => :out)
 fireRelay = PiPiper::Pin.new(:pin => 7, :direction => :out)
 
-dmx = Dmx.new({:numbers => 1, :litebar => 8})
+dmx = Dmx.new({:numbers => 1, :litebar => 8, :par => 20})
 number = NumberDisplay.new(dmx,:numbers)
 litebar = LiteBar.new(dmx,:litebar)
+par = Par.new(dmx,:par)
 countdown = true
 pins = [PiPiper::Pin.new(:pin => 4, :direction => :out),
 	PiPiper::Pin.new(:pin => 17, :direction => :out),
@@ -37,7 +41,7 @@ fireworks.each {|f| f.status = :unknown}
 fireworks.save!
 armed = false
 selected = nil
-
+par.fade()
 litebar.green()
 
 PiPiper::after :pin => 3, :goes => :high do
@@ -46,6 +50,7 @@ Thread.new do
   armed = false
   fireButtonLight.off
   litebar.green()
+  par.fade()
 end
 end
 
@@ -58,11 +63,13 @@ Thread.new do
   end
 
   litebar.red()
+  par.off()
 end
 end
 
 PiPiper::after :pin => 2, :goes => :low do
 Thread.new do
+  mutex.synchronize do
   puts "Fire button pressed"
   if armed and selected
      selected.fired = true
@@ -87,6 +94,7 @@ Thread.new do
   else
     puts "not armed"
   end
+  end
 end
 end
 
@@ -96,7 +104,8 @@ get "/fireworks/countdown" do
 end	
 
 get "/fireworks/check" do
-	
+
+   mutex.synchronize do	
 	fireworks = Firework.all
 	fireworks.each do |firework|
 		firework.select(pins)
@@ -114,7 +123,7 @@ get "/fireworks/check" do
 	fireworks.save!
 	selected = nil
 	redirect to('/fireworks')
-
+   end
 end
 
 get "/fireworks" do
@@ -138,6 +147,9 @@ get "/fireworks/:id/select" do
      if(@firework.fired)
 	return
      end
+
+   mutex.synchronize do
+
      if armed
         fireButtonLight.on
      end
@@ -145,6 +157,7 @@ get "/fireworks/:id/select" do
      @firework.select(pins)
      selected = @firework
      redirect to('/fireworks')
+   end
 end
 
 get "/fireworks/add" do

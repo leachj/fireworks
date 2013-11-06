@@ -17,6 +17,24 @@ class Dmx
 
 end
 
+
+class Par
+
+	def initialize(dmx, id)
+		@dmx = dmx
+		@id = id
+	end
+	
+	def fade
+		@dmx.set(@id, [0,0,0,0,240,50])
+	end
+	
+	def off
+		@dmx.set(@id, [0,0,0,0,0,0])
+	end
+
+end
+
 class LiteBar
 
 	def initialize(dmx, id)
